@@ -37,9 +37,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
 #include <selinux/label.h>
 #include <selinux/android.h>
+#endif
 
 #include <android-base/file.h>
 #include <android-base/properties.h>
@@ -311,6 +313,14 @@ static bool set_highest_available_option_value(std::string path, int min, int ma
         std::string str_val = std::to_string(current);
         std::ofstream of(path, std::fstream::out);
         if (!of) {
+            // check if current value already comply
+            inf.seekg(0);
+            std::string str_rec;
+            inf >> str_rec;
+            int int_rec = std::stoi(str_rec);
+            if (int_rec >= min && int_rec <= max)
+                return true;
+
             LOG(ERROR) << "Cannot open for writing: " << path;
             return false;
         }
@@ -398,7 +408,11 @@ static int set_mmap_rnd_bits_action(const std::vector<std::string>& args)
 
     if (ret == -1) {
         LOG(ERROR) << "Unable to set adequate mmap entropy value!";
+#if !defined(ANDROID_CONTAINER)
         security_failure();
+#else
+        ret = 0;
+#endif
     }
     return ret;
 }
@@ -417,7 +431,9 @@ static int set_kptr_restrict_action(const std::vector<std::string>& args)
 
     if (!set_highest_available_option_value(path, KPTR_RESTRICT_MINVALUE, KPTR_RESTRICT_MAXVALUE)) {
         LOG(ERROR) << "Unable to set adequate kptr_restrict value!";
+#if !defined(ANDROID_CONTAINER)
         security_failure();
+#endif
     }
     return 0;
 }
@@ -531,6 +547,7 @@ static int queue_property_triggers_action(const std::vector<std::string>& args)
     return 0;
 }
 
+#if !defined(DISABLE_SELINUX)
 static void selinux_init_all_handles(void)
 {
     sehandle = selinux_android_file_context_handle();
@@ -903,6 +920,7 @@ static void selinux_restore_context() {
     restorecon("/dev/block", SELINUX_ANDROID_RESTORECON_RECURSE);
     restorecon("/dev/device-mapper");
 }
+#endif /* !DISABLE_SELINUX */
 
 // Set the UDC controller for the ConfigFS USB Gadgets.
 // Read the UDC controller in use from "/sys/class/udc".
@@ -970,18 +988,26 @@ int main(int argc, char** argv) {
 
         // Get the basic filesystem setup we need put together in the initramdisk
         // on / and then we'll let the rc file figure out the rest.
+#if !defined(ANDROID_CONTAINER)
         mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755");
         mkdir("/dev/pts", 0755);
+#endif
         mkdir("/dev/socket", 0755);
+#if !defined(ANDROID_CONTAINER)
         mount("devpts", "/dev/pts", "devpts", 0, NULL);
         #define MAKE_STR(x) __STRING(x)
         mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC));
+#endif
         // Don't expose the raw commandline to unprivileged processes.
         chmod("/proc/cmdline", 0440);
         gid_t groups[] = { AID_READPROC };
         setgroups(arraysize(groups), groups);
+#if !defined(ANDROID_CONTAINER)
         mount("sysfs", "/sys", "sysfs", 0, NULL);
+#if !defined(DISABLE_SELINUX)
         mount("selinuxfs", "/sys/fs/selinux", "selinuxfs", 0, NULL);
+#endif
+#endif
         mknod("/dev/kmsg", S_IFCHR | 0600, makedev(1, 11));
         mknod("/dev/random", S_IFCHR | 0666, makedev(1, 8));
         mknod("/dev/urandom", S_IFCHR | 0666, makedev(1, 9));
@@ -999,6 +1025,7 @@ int main(int argc, char** argv) {
 
         SetInitAvbVersionInRecovery();
 
+#if !defined(DISABLE_SELINUX)
         // Set up SELinux, loading the SELinux policy.
         selinux_initialize(true);
 
@@ -1008,6 +1035,7 @@ int main(int argc, char** argv) {
             PLOG(ERROR) << "restorecon failed";
             security_failure();
         }
+#endif
 
         setenv("INIT_SECOND_STAGE", "true", 1);
 
@@ -1050,7 +1078,9 @@ int main(int argc, char** argv) {
 
     // Make the time that init started available for bootstat to log.
     property_set("ro.boottime.init", getenv("INIT_STARTED_AT"));
+#if !defined(DISABLE_SELINUX)
     property_set("ro.boottime.init.selinux", getenv("INIT_SELINUX_TOOK"));
+#endif
 
     // Set libavb version for Framework-only OTA match in Treble build.
     const char* avb_version = getenv("INIT_AVB_VERSION");
@@ -1059,12 +1089,16 @@ int main(int argc, char** argv) {
     // Clean up our environment.
     unsetenv("INIT_SECOND_STAGE");
     unsetenv("INIT_STARTED_AT");
+#if !defined(DISABLE_SELINUX)
     unsetenv("INIT_SELINUX_TOOK");
+#endif
     unsetenv("INIT_AVB_VERSION");
 
+#if !defined(DISABLE_SELINUX)
     // Now set up SELinux for second stage.
     selinux_initialize(false);
     selinux_restore_context();
+#endif
 
     epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd == -1) {

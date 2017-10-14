@@ -26,6 +26,12 @@ init_options += \
     -DSHUTDOWN_ZERO_TIMEOUT=0
 endif
 
+ifeq (true,$(strip $(BOARD_IS_CONTAINER)))
+init_options += \
+    -DDISABLE_SELINUX \
+    $(empty)
+endif
+
 init_options += -DLOG_UEVENTS=0
 
 init_cflags += \
@@ -71,7 +77,10 @@ LOCAL_SRC_FILES:= \
     service.cpp \
     util.cpp \
 
-LOCAL_STATIC_LIBRARIES := libbase libselinux liblog libprocessgroup
+LOCAL_STATIC_LIBRARIES := libbase liblog libprocessgroup
+ifneq (true,$(strip $(BOARD_IS_CONTAINER)))
+LOCAL_STATIC_LIBRARIES += libselinux
+endif
 LOCAL_WHOLE_STATIC_LIBRARIES := libcap
 LOCAL_MODULE := libinit
 LOCAL_SANITIZE := integer

@@ -40,9 +40,11 @@
 #include <netinet/in.h>
 #include <sys/mman.h>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/android.h>
 #include <selinux/selinux.h>
 #include <selinux/label.h>
+#endif
 
 #include <android-base/file.h>
 #include <android-base/properties.h>
@@ -66,14 +68,22 @@ static int persistent_properties_loaded = 0;
 static int property_set_fd = -1;
 
 void property_init() {
+#if !defined(DISABLE_SELINUX)
     if (__system_property_area_init()) {
+#else
+    if (-1 == __system_property_area_init()) {
+        /**
+         * __system_property_area_init may return -2 indicating
+         * fsetattr for selinux failed.
+         */
+#endif
         LOG(ERROR) << "Failed to initialize property area";
         exit(1);
     }
 }
 
 static bool check_mac_perms(const std::string& name, char* sctx, struct ucred* cr) {
-
+#if !defined(DISABLE_SELINUX)
     if (!sctx) {
       return false;
     }
@@ -96,6 +106,9 @@ static bool check_mac_perms(const std::string& name, char* sctx, struct ucred* c
 
     freecon(tctx);
     return has_access;
+#else
+    return true;
+#endif
 }
 
 static int check_control_mac_perms(const char *name, char *sctx, struct ucred *cr)
@@ -177,11 +190,13 @@ uint32_t property_set(const std::string& name, const std::string& value) {
         return PROP_ERROR_INVALID_VALUE;
     }
 
+#if !defined(DISABLE_SELINUX)
     if (name == "selinux.restorecon_recursive" && valuelen > 0) {
         if (restorecon(value.c_str(), SELINUX_ANDROID_RESTORECON_RECURSE) != 0) {
             LOG(ERROR) << "Failed to restorecon_recursive " << value;
         }
     }
+#endif
 
     prop_info* pi = (prop_info*) __system_property_find(name.c_str());
     if (pi != nullptr) {
@@ -344,7 +359,9 @@ static void handle_property_set(SocketConnection& socket,
 
   struct ucred cr = socket.cred();
   char* source_ctx = nullptr;
+#if !defined(DISABLE_SELINUX)
   getpeercon(socket.socket(), &source_ctx);
+#endif
 
   if (android::base::StartsWith(name, "ctl.")) {
     if (check_control_mac_perms(value.c_str(), source_ctx, &cr)) {
@@ -376,7 +393,9 @@ static void handle_property_set(SocketConnection& socket,
     }
   }
 
+#if !defined(DISABLE_SELINUX)
   freecon(source_ctx);
+#endif
 }
 
 static void handle_property_set_fd() {

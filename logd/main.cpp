@@ -418,6 +418,7 @@ int main(int argc, char* argv[]) {
         fdDmesg = TEMP_FAILURE_RETRY(open(dev_kmsg, O_WRONLY | O_CLOEXEC));
     }
 
+#if !defined(ANDROID_CONTAINER)
     int fdPmesg = -1;
     bool klogd = __android_logger_property_get_bool(
         "logd.kernel", BOOL_DEFAULT_TRUE | BOOL_DEFAULT_FLAG_PERSIST |
@@ -431,6 +432,9 @@ int main(int argc, char* argv[]) {
         }
         if (fdPmesg < 0) android::prdebug("Failed to open %s\n", proc_kmsg);
     }
+#else
+    bool klogd = false;
+#endif
 
     // Reinit Thread
     sem_init(&reinit, 0, 0);
@@ -453,8 +457,12 @@ int main(int argc, char* argv[]) {
         pthread_attr_destroy(&attr);
     }
 
+#if !defined(ANDROID_CONTAINER)
     bool auditd =
         __android_logger_property_get_bool("ro.logd.auditd", BOOL_DEFAULT_TRUE);
+#else
+    bool auditd = false;
+#endif
     if (drop_privs(klogd, auditd) != 0) {
         return -1;
     }
@@ -505,6 +513,7 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+#if !defined(ANDROID_CONTAINER)
     // LogAudit listens on NETLINK_AUDIT socket for selinux
     // initiated log messages. New log entries are added to LogBuffer
     // and LogReader is notified to send updates to connected clients.
@@ -534,6 +543,7 @@ int main(int argc, char* argv[]) {
     if (al && al->startListener()) {
         delete al;
     }
+#endif
 
     TEMP_FAILURE_RETRY(pause());
 

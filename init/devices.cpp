@@ -37,10 +37,12 @@
 #include <memory>
 #include <thread>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
 #include <selinux/label.h>
 #include <selinux/android.h>
 #include <selinux/avc.h>
+#endif
 
 #include <private/android_filesystem_config.h>
 
@@ -176,10 +178,12 @@ static void fixup_sys_perms(const char* upath, const char* subsystem) {
         chmod(attr_file.c_str(), dp->perm);
     }
 
+#if !defined(DISABLE_SELINUX)
     if (access(path.c_str(), F_OK) == 0) {
         LOG(VERBOSE) << "restorecon_recursive: " << path;
         restorecon(path.c_str(), SELINUX_ANDROID_RESTORECON_RECURSE);
     }
+#endif
 }
 
 static mode_t get_device_perm(const char *path, const char **links,
@@ -233,10 +237,13 @@ static void make_device(const char *path,
     unsigned gid;
     mode_t mode;
     dev_t dev;
+#if !defined(DISABLE_SELINUX)
     char *secontext = NULL;
+#endif
 
     mode = get_device_perm(path, links, &uid, &gid) | (block ? S_IFBLK : S_IFCHR);
 
+#if !defined(DISABLE_SELINUX)
     if (sehandle) {
         if (selabel_lookup_best_match(sehandle, &secontext, path, links, mode)) {
             PLOG(ERROR) << "Device '" << path << "' not created; cannot find SELinux label";
@@ -244,6 +251,7 @@ static void make_device(const char *path,
         }
         setfscreatecon(secontext);
     }
+#endif
 
     dev = makedev(major, minor);
     /* Temporarily change egid to avoid race condition setting the gid of the
@@ -255,6 +263,7 @@ static void make_device(const char *path,
         PLOG(ERROR) << "setegid(" << gid << ") for " << path << " device failed";
         goto out;
     }
+#if !defined(DISABLE_SELINUX)
     /* If the node already exists update its SELinux label to handle cases when
      * it was created with the wrong context during coldboot procedure. */
     if (mknod(path, mode, dev) && (errno == EEXIST) && secontext) {
@@ -273,6 +282,7 @@ static void make_device(const char *path,
             PLOG(ERROR) << "Cannot set '" << secontext << "' SELinux label on '" << path << "' device";
         }
     }
+#endif
 
 out:
     chown(path, uid, -1);
@@ -280,10 +290,12 @@ out:
         PLOG(FATAL) << "setegid(AID_ROOT) failed";
     }
 
+#if !defined(DISABLE_SELINUX)
     if (secontext) {
         freecon(secontext);
         setfscreatecon(NULL);
     }
+#endif
 }
 
 static void add_platform_device(const char *path)
@@ -948,6 +960,7 @@ coldboot_action_t handle_device_fd(coldboot_callback fn)
 {
     coldboot_action_t ret = handle_device_fd_with(
         [&](uevent* uevent) -> coldboot_action_t {
+#if !defined(DISABLE_SELINUX)
             if (selinux_status_updated() > 0) {
                 struct selabel_handle *sehandle2;
                 sehandle2 = selinux_android_file_context_handle();
@@ -956,6 +969,7 @@ coldboot_action_t handle_device_fd(coldboot_callback fn)
                     sehandle = sehandle2;
                 }
             }
+#endif
 
             // default is to always create the devices
             coldboot_action_t act = COLDBOOT_CREATE;
@@ -1034,9 +1048,11 @@ static coldboot_action_t coldboot(const char *path, coldboot_callback fn)
 }
 
 void device_init(const char* path, coldboot_callback fn) {
+#if !defined(DISABLE_SELINUX)
     if (!sehandle) {
         sehandle = selinux_android_file_context_handle();
     }
+#endif
     // open uevent socket and selinux status only if it hasn't been
     // done before
     if (device_fd == -1) {
@@ -1046,7 +1062,9 @@ void device_init(const char* path, coldboot_callback fn) {
             return;
         }
         fcntl(device_fd, F_SETFL, O_NONBLOCK);
+#if !defined(DISABLE_SELINUX)
         selinux_status_open(true);
+#endif
     }
 
     if (access(COLDBOOT_DONE, F_OK) == 0) {
@@ -1080,7 +1098,9 @@ void device_init(const char* path, coldboot_callback fn) {
 void device_close() {
     destroy_platform_devices();
     device_fd.reset();
+#if !defined(DISABLE_SELINUX)
     selinux_status_close();
+#endif
 }
 
 int get_device_fd() {

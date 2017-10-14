@@ -26,8 +26,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/android.h>
 #include <selinux/label.h>
+#endif
 
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -95,12 +97,14 @@ unsigned int decode_uid(const char *s) {
 int create_socket(const char *name, int type, mode_t perm, uid_t uid,
                   gid_t gid, const char *socketcon)
 {
+#if !defined(DISABLE_SELINUX)
     if (socketcon) {
         if (setsockcreatecon(socketcon) == -1) {
             PLOG(ERROR) << "setsockcreatecon(\"" << socketcon << "\") failed";
             return -1;
         }
     }
+#endif
 
     android::base::unique_fd fd(socket(PF_UNIX, type, 0));
     if (fd < 0) {
@@ -108,7 +112,9 @@ int create_socket(const char *name, int type, mode_t perm, uid_t uid,
         return -1;
     }
 
+#if !defined(DISABLE_SELINUX)
     if (socketcon) setsockcreatecon(NULL);
+#endif
 
     struct sockaddr_un addr;
     memset(&addr, 0 , sizeof(addr));
@@ -121,18 +127,22 @@ int create_socket(const char *name, int type, mode_t perm, uid_t uid,
         return -1;
     }
 
+#if !defined(DISABLE_SELINUX)
     char *filecon = NULL;
     if (sehandle) {
         if (selabel_lookup(sehandle, &filecon, addr.sun_path, S_IFSOCK) == 0) {
             setfscreatecon(filecon);
         }
     }
+#endif
 
     int ret = bind(fd, (struct sockaddr *) &addr, sizeof (addr));
     int savederrno = errno;
 
+#if !defined(DISABLE_SELINUX)
     setfscreatecon(NULL);
     freecon(filecon);
+#endif
 
     if (ret) {
         errno = savederrno;
@@ -289,28 +299,36 @@ int make_dir(const char *path, mode_t mode)
 {
     int rc;
 
+#if !defined(DISABLE_SELINUX)
     char *secontext = NULL;
 
     if (sehandle) {
         selabel_lookup(sehandle, &secontext, path, mode);
         setfscreatecon(secontext);
     }
+#endif
 
     rc = mkdir(path, mode);
 
+#if !defined(DISABLE_SELINUX)
     if (secontext) {
         int save_errno = errno;
         freecon(secontext);
         setfscreatecon(NULL);
         errno = save_errno;
     }
+#endif
 
     return rc;
 }
 
 int restorecon(const char* pathname, int flags)
 {
+#if !defined(DISABLE_SELINUX)
     return selinux_android_restorecon(pathname, flags);
+#else
+    return 0;
+#endif
 }
 
 /*

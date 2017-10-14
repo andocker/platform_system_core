@@ -17,7 +17,9 @@
 #include <fcntl.h>
 #include <linux/fs.h>
 #include <mntent.h>
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
+#endif
 #include <sys/cdefs.h>
 #include <sys/ioctl.h>
 #include <sys/mount.h>
@@ -162,6 +164,7 @@ static void LogShutdownTime(UmountStat stat, Timer* t) {
 static void __attribute__((noreturn))
 RebootSystem(unsigned int cmd, const std::string& rebootTarget) {
     LOG(INFO) << "Reboot ending, jumping to kernel";
+#if !defined(ANDROID_CONTAINER)
     switch (cmd) {
         case ANDROID_RB_POWEROFF:
             reboot(RB_POWER_OFF);
@@ -176,6 +179,9 @@ RebootSystem(unsigned int cmd, const std::string& rebootTarget) {
             reboot(RB_POWER_OFF);
             break;
     }
+#else
+    exit(0);
+#endif
     // In normal case, reboot should not return.
     PLOG(FATAL) << "reboot call returned";
     abort();
@@ -207,7 +213,11 @@ static bool FindPartitionsToUmount(std::vector<MountEntry>* blockDevPartitions,
 
 static void DumpUmountDebuggingInfo(bool dump_all) {
     int status;
+#if !defined(DISABLE_SELINUX)
     if (!security_getenforce()) {
+#else
+    if (true) {
+#endif
         LOG(INFO) << "Run lsof";
         const char* lsof_argv[] = {"/system/bin/lsof"};
         android_fork_execvp_ext(arraysize(lsof_argv), (char**)lsof_argv, &status, true, LOG_KLOG,
