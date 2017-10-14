@@ -162,6 +162,7 @@ static void LogShutdownTime(UmountStat stat, Timer* t) {
 static void __attribute__((noreturn))
 RebootSystem(unsigned int cmd, const std::string& rebootTarget) {
     LOG(INFO) << "Reboot ending, jumping to kernel";
+#if !defined(ANDROID_CONTAINER)
     switch (cmd) {
         case ANDROID_RB_POWEROFF:
             reboot(RB_POWER_OFF);
@@ -176,6 +177,9 @@ RebootSystem(unsigned int cmd, const std::string& rebootTarget) {
             reboot(RB_POWER_OFF);
             break;
     }
+#else
+    exit(0);
+#endif
     // In normal case, reboot should not return.
     PLOG(FATAL) << "reboot call returned";
     abort();
