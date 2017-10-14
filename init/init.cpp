@@ -988,19 +988,25 @@ int main(int argc, char** argv) {
 
         // Get the basic filesystem setup we need put together in the initramdisk
         // on / and then we'll let the rc file figure out the rest.
+#if !defined(ANDROID_CONTAINER)
         mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755");
         mkdir("/dev/pts", 0755);
+#endif
         mkdir("/dev/socket", 0755);
+#if !defined(ANDROID_CONTAINER)
         mount("devpts", "/dev/pts", "devpts", 0, NULL);
         #define MAKE_STR(x) __STRING(x)
         mount("proc", "/proc", "proc", 0, "hidepid=2,gid=" MAKE_STR(AID_READPROC));
+#endif
         // Don't expose the raw commandline to unprivileged processes.
         chmod("/proc/cmdline", 0440);
         gid_t groups[] = { AID_READPROC };
         setgroups(arraysize(groups), groups);
+#if !defined(ANDROID_CONTAINER)
         mount("sysfs", "/sys", "sysfs", 0, NULL);
 #if !defined(DISABLE_SELINUX)
         mount("selinuxfs", "/sys/fs/selinux", "selinuxfs", 0, NULL);
+#endif
 #endif
         mknod("/dev/kmsg", S_IFCHR | 0600, makedev(1, 11));
         mknod("/dev/random", S_IFCHR | 0666, makedev(1, 8));
