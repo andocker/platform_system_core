@@ -62,6 +62,7 @@ using namespace std::chrono_literals;
          sizeof(PROCESSGROUP_CGROUP_PROCS_FILE) + \
          1)
 
+#if !defined(ANDROID_CONTAINER)
 std::once_flag init_path_flag;
 
 struct ctx {
@@ -224,9 +225,11 @@ static void removeUidProcessGroups(const char *uid_path)
         }
     }
 }
+#endif /* !ANDROID_CONTAINER */
 
 void removeAllProcessGroups()
 {
+#if !defined(ANDROID_CONTAINER)
     LOG(VERBOSE) << "removeAllProcessGroups()";
     const char* cgroup_root_path = getCgroupRootPath();
     std::unique_ptr<DIR, decltype(&closedir)> root(opendir(cgroup_root_path), closedir);
@@ -250,8 +253,10 @@ void removeAllProcessGroups()
             if (rmdir(path) == -1) PLOG(WARNING) << "failed to remove " << path;
         }
     }
+#endif
 }
 
+#if !defined(ANDROID_CONTAINER)
 static int doKillProcessGroupOnce(uid_t uid, int initialPid, int signal) {
     int processes = 0;
     struct ctx ctx;
@@ -280,8 +285,10 @@ static int doKillProcessGroupOnce(uid_t uid, int initialPid, int signal) {
 
     return processes;
 }
+#endif
 
 static int killProcessGroup(uid_t uid, int initialPid, int signal, int retry) {
+#if !defined(ANDROID_CONTAINER)
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 
     int processes;
@@ -308,6 +315,14 @@ static int killProcessGroup(uid_t uid, int initialPid, int signal, int retry) {
     } else {
         return -1;
     }
+#else
+    (void) uid;
+    (void) initialPid;
+    (void) signal;
+    (void) retry;
+
+    return 0;
+#endif /* !ANDROID_CONTAINER */
 }
 
 int killProcessGroup(uid_t uid, int initialPid, int signal) {
@@ -318,6 +333,7 @@ int killProcessGroupOnce(uid_t uid, int initialPid, int signal) {
     return killProcessGroup(uid, initialPid, signal, 0 /*maxRetry*/);
 }
 
+#if !defined(ANDROID_CONTAINER)
 static bool mkdirAndChown(const char *path, mode_t mode, uid_t uid, gid_t gid)
 {
     if (mkdir(path, mode) == -1 && errno != EEXIST) {
@@ -333,9 +349,11 @@ static bool mkdirAndChown(const char *path, mode_t mode, uid_t uid, gid_t gid)
 
     return true;
 }
+#endif
 
 int createProcessGroup(uid_t uid, int initialPid)
 {
+#if !defined(ANDROID_CONTAINER)
     char path[PROCESSGROUP_MAX_PATH_LEN] = {0};
 
     convertUidToPath(path, sizeof(path), uid);
@@ -372,4 +390,10 @@ int createProcessGroup(uid_t uid, int initialPid)
 
     close(fd);
     return ret;
+#else
+    (void) uid;
+    (void) initialPid;
+
+    return 0;
+#endif
 }
