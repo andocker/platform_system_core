@@ -313,6 +313,14 @@ static bool set_highest_available_option_value(std::string path, int min, int ma
         std::string str_val = std::to_string(current);
         std::ofstream of(path, std::fstream::out);
         if (!of) {
+            // check if current value already comply
+            inf.seekg(0);
+            std::string str_rec;
+            inf >> str_rec;
+            int int_rec = std::stoi(str_rec);
+            if (int_rec >= min && int_rec <= max)
+                return true;
+
             LOG(ERROR) << "Cannot open for writing: " << path;
             return false;
         }
@@ -400,7 +408,11 @@ static int set_mmap_rnd_bits_action(const std::vector<std::string>& args)
 
     if (ret == -1) {
         LOG(ERROR) << "Unable to set adequate mmap entropy value!";
+#if !defined(ANDROID_CONTAINER)
         security_failure();
+#else
+        ret = 0;
+#endif
     }
     return ret;
 }
@@ -419,7 +431,9 @@ static int set_kptr_restrict_action(const std::vector<std::string>& args)
 
     if (!set_highest_available_option_value(path, KPTR_RESTRICT_MINVALUE, KPTR_RESTRICT_MAXVALUE)) {
         LOG(ERROR) << "Unable to set adequate kptr_restrict value!";
+#if !defined(ANDROID_CONTAINER)
         security_failure();
+#endif
     }
     return 0;
 }
