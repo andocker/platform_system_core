@@ -37,9 +37,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
 #include <selinux/label.h>
 #include <selinux/android.h>
+#endif
 
 #include <android-base/file.h>
 #include <android-base/properties.h>
@@ -531,6 +533,7 @@ static int queue_property_triggers_action(const std::vector<std::string>& args)
     return 0;
 }
 
+#if !defined(DISABLE_SELINUX)
 static void selinux_init_all_handles(void)
 {
     sehandle = selinux_android_file_context_handle();
@@ -903,6 +906,7 @@ static void selinux_restore_context() {
     restorecon("/dev/block", SELINUX_ANDROID_RESTORECON_RECURSE);
     restorecon("/dev/device-mapper");
 }
+#endif /* !DISABLE_SELINUX */
 
 // Set the UDC controller for the ConfigFS USB Gadgets.
 // Read the UDC controller in use from "/sys/class/udc".
@@ -981,7 +985,9 @@ int main(int argc, char** argv) {
         gid_t groups[] = { AID_READPROC };
         setgroups(arraysize(groups), groups);
         mount("sysfs", "/sys", "sysfs", 0, NULL);
+#if !defined(DISABLE_SELINUX)
         mount("selinuxfs", "/sys/fs/selinux", "selinuxfs", 0, NULL);
+#endif
         mknod("/dev/kmsg", S_IFCHR | 0600, makedev(1, 11));
         mknod("/dev/random", S_IFCHR | 0666, makedev(1, 8));
         mknod("/dev/urandom", S_IFCHR | 0666, makedev(1, 9));
@@ -999,6 +1005,7 @@ int main(int argc, char** argv) {
 
         SetInitAvbVersionInRecovery();
 
+#if !defined(DISABLE_SELINUX)
         // Set up SELinux, loading the SELinux policy.
         selinux_initialize(true);
 
@@ -1008,6 +1015,7 @@ int main(int argc, char** argv) {
             PLOG(ERROR) << "restorecon failed";
             security_failure();
         }
+#endif
 
         setenv("INIT_SECOND_STAGE", "true", 1);
 
@@ -1050,7 +1058,9 @@ int main(int argc, char** argv) {
 
     // Make the time that init started available for bootstat to log.
     property_set("ro.boottime.init", getenv("INIT_STARTED_AT"));
+#if !defined(DISABLE_SELINUX)
     property_set("ro.boottime.init.selinux", getenv("INIT_SELINUX_TOOK"));
+#endif
 
     // Set libavb version for Framework-only OTA match in Treble build.
     const char* avb_version = getenv("INIT_AVB_VERSION");
@@ -1059,12 +1069,16 @@ int main(int argc, char** argv) {
     // Clean up our environment.
     unsetenv("INIT_SECOND_STAGE");
     unsetenv("INIT_STARTED_AT");
+#if !defined(DISABLE_SELINUX)
     unsetenv("INIT_SELINUX_TOOK");
+#endif
     unsetenv("INIT_AVB_VERSION");
 
+#if !defined(DISABLE_SELINUX)
     // Now set up SELinux for second stage.
     selinux_initialize(false);
     selinux_restore_context();
+#endif
 
     epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (epoll_fd == -1) {

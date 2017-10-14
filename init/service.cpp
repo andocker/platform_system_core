@@ -30,7 +30,9 @@
 #include <termios.h>
 #include <unistd.h>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
+#endif
 
 #include <android-base/file.h>
 #include <android-base/parseint.h>
@@ -52,6 +54,7 @@ using android::base::ParseInt;
 using android::base::StringPrintf;
 using android::base::WriteStringToFile;
 
+#if !defined(DISABLE_SELINUX)
 static std::string ComputeContextFromExecutable(std::string& service_name,
                                                 const std::string& service_path) {
     std::string computed_context;
@@ -88,6 +91,7 @@ static std::string ComputeContextFromExecutable(std::string& service_name,
     }
     return computed_context;
 }
+#endif
 
 static void SetUpPidNamespace(const std::string& service_name) {
     constexpr unsigned int kSafeFlags = MS_NODEV | MS_NOEXEC | MS_NOSUID;
@@ -251,11 +255,13 @@ void Service::SetProcessAttributes() {
             PLOG(FATAL) << "setuid failed for " << name_;
         }
     }
+#if !defined(DISABLE_SELINUX)
     if (!seclabel_.empty()) {
         if (setexeccon(seclabel_.c_str()) < 0) {
             PLOG(FATAL) << "cannot setexeccon('" << seclabel_ << "') for " << name_;
         }
     }
+#endif
     if (priority_ != 0) {
         if (setpriority(PRIO_PROCESS, 0, priority_) != 0) {
             PLOG(FATAL) << "setpriority failed for " << name_;
@@ -636,12 +642,14 @@ bool Service::Start() {
     std::string scon;
     if (!seclabel_.empty()) {
         scon = seclabel_;
+#if !defined(DISABLE_SELINUX)
     } else {
         LOG(INFO) << "computing context for service '" << name_ << "'";
         scon = ComputeContextFromExecutable(name_, args_[0]);
         if (scon == "") {
             return false;
         }
+#endif
     }
 
     LOG(INFO) << "starting service '" << name_ << "'...";

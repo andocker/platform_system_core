@@ -41,9 +41,11 @@
 #include <string>
 #include <thread>
 
+#if !defined(DISABLE_SELINUX)
 #include <selinux/android.h>
 #include <selinux/selinux.h>
 #include <selinux/label.h>
+#endif
 
 #include <android-base/file.h>
 #include <android-base/parseint.h>
@@ -697,6 +699,7 @@ static int do_chmod(const std::vector<std::string>& args) {
 
 static int do_restorecon(const std::vector<std::string>& args) {
     int ret = 0;
+#if !defined(DISABLE_SELINUX)
 
     struct flag_type {const char* name; int value;};
     static const flag_type flags[] = {
@@ -734,6 +737,7 @@ static int do_restorecon(const std::vector<std::string>& args) {
             }
         }
     }
+#endif
     return ret;
 }
 

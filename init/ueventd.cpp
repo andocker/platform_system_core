@@ -28,7 +28,9 @@
 
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
+#endif
 
 #include "ueventd.h"
 #include "log.h"
@@ -56,9 +58,11 @@ int ueventd_main(int argc, char **argv)
 
     LOG(INFO) << "ueventd started!";
 
+#if !defined(DISABLE_SELINUX)
     selinux_callback cb;
     cb.func_log = selinux_klog_callback;
     selinux_set_callback(SELINUX_CB_LOG, cb);
+#endif
 
     ueventd_parse_config_file("/ueventd.rc");
     ueventd_parse_config_file("/vendor/ueventd.rc");

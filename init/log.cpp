@@ -21,9 +21,12 @@
 #include <string.h>
 
 #include <android-base/logging.h>
+#if !defined(DISABLE_SELINUX)
 #include <selinux/selinux.h>
+#endif
 
 void InitKernelLogging(char* argv[]) {
+#if !defined(DISABLE_SELINUX)
     // Make stdin/stdout/stderr all point to /dev/null.
     int fd = open("/sys/fs/selinux/null", O_RDWR);
     if (fd == -1) {
@@ -38,9 +41,13 @@ void InitKernelLogging(char* argv[]) {
     if (fd > 2) close(fd);
 
     android::base::InitLogging(argv, &android::base::KernelLogger);
+#else
+    android::base::InitLogging(argv, &android::base::StderrLogger);
+#endif
 }
 
 int selinux_klog_callback(int type, const char *fmt, ...) {
+#if !defined(DISABLE_SELINUX)
     android::base::LogSeverity severity = android::base::ERROR;
     if (type == SELINUX_WARNING) {
         severity = android::base::WARNING;
@@ -53,5 +60,6 @@ int selinux_klog_callback(int type, const char *fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     android::base::KernelLogger(android::base::MAIN, severity, "selinux", nullptr, 0, buf);
+#endif
     return 0;
 }
