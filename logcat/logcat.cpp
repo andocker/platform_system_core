@@ -37,6 +37,7 @@
 
 #include <atomic>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -1217,7 +1218,28 @@ static int __logcat(android_logcat_context_internal* context) {
 
                     std::string cmdline = android::base::GetProperty(QEMU_CMDLINE, "");
                     if (cmdline.empty()) {
+#if !defined(ANDROID_CONTAINER)
                         android::base::ReadFileToString("/proc/cmdline", &cmdline);
+#else
+                        // Don't read host /proc/cmdline in container, and
+                        // since INIT_KERNEL_CMDLINE is only for init itself,
+                        // we rebuild cmdline back here.
+
+                        const char* names[] = {
+                            "ro.boot.logcat",
+                            "ro.boot.consolepipe",
+                            "ro.boot.console",
+                        };
+                        for (auto name : names) {
+                            std::string prop = android::base::GetProperty(name, "");
+                            if (prop.empty())
+                                continue;
+
+                            std::stringstream ss;
+                            ss << "androidboot." << (name + 8) << '=' << prop << ' ';
+                            cmdline += ss.str();
+                        }
+#endif
                     }
 
                     const char* logcatFilter = strstr(cmdline.c_str(), LOGCAT_FILTER);

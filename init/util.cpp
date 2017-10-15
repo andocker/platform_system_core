@@ -284,8 +284,12 @@ int wait_for_file(const char* filename, std::chrono::nanoseconds timeout) {
 
 void import_kernel_cmdline(bool in_qemu,
                            const std::function<void(const std::string&, const std::string&, bool)>& fn) {
+#if !defined(ANDROID_CONTAINER)
     std::string cmdline;
     android::base::ReadFileToString("/proc/cmdline", &cmdline);
+#else
+    std::string cmdline(getenv("INIT_KERNEL_CMDLINE"));
+#endif
 
     for (const auto& entry : android::base::Split(android::base::Trim(cmdline), " ")) {
         std::vector<std::string> pieces = android::base::Split(entry, "=");
