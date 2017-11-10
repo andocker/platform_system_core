@@ -74,8 +74,12 @@ static void log_header() {
   std::string fingerprint = android::base::GetProperty("ro.build.fingerprint", "");
   if (fingerprint.empty()) return;
 
+#if !defined(ANDROID_CONTAINER)
   std::string kernel_cmdline;
   android::base::ReadFileToString("/proc/cmdline", &kernel_cmdline);
+#else
+  std::string kernel_cmdline(getenv("INIT_KERNEL_CMDLINE"));
+#endif
 
   auto fp = fopen_unique("/data/bootchart/header", "we");
   if (!fp) return;

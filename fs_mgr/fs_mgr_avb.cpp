@@ -190,10 +190,14 @@ class FsManagerAvbVerifier {
 
 std::unique_ptr<FsManagerAvbVerifier> FsManagerAvbVerifier::Create() {
     std::string cmdline;
+#if !defined(ANDROID_CONTAINER)
     if (!android::base::ReadFileToString("/proc/cmdline", &cmdline)) {
         LERROR << "Failed to read /proc/cmdline";
         return nullptr;
     }
+#else
+    cmdline = getenv("INIT_KERNEL_CMDLINE");
+#endif
 
     std::unique_ptr<FsManagerAvbVerifier> avb_verifier(new FsManagerAvbVerifier());
     if (!avb_verifier) {

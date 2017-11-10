@@ -36,7 +36,11 @@ bool fs_mgr_get_boot_config(const std::string& key, std::string* out_val) {
     // fallback to kernel cmdline, properties may not be ready yet
     std::string cmdline;
     std::string cmdline_key("androidboot." + key);
+#if !defined(ANDROID_CONTAINER)
     if (android::base::ReadFileToString("/proc/cmdline", &cmdline)) {
+#else
+    if (!(cmdline = getenv("INIT_KERNEL_CMDLINE")).empty()) {
+#endif
         for (const auto& entry : android::base::Split(android::base::Trim(cmdline), " ")) {
             std::vector<std::string> pieces = android::base::Split(entry, "=");
             if (pieces.size() == 2) {
