@@ -128,11 +128,13 @@ static void drop_privileges(int server_port) {
         // minijail_enter() will abort if any priv-dropping step fails.
         minijail_enter(jail.get());
 
+#if !defined(ANDROID_CONTAINER)
         if (root_seclabel != nullptr) {
             if (selinux_android_setcon(root_seclabel) < 0) {
                 LOG(FATAL) << "Could not set SELinux context";
             }
         }
+#endif
         std::string error;
         std::string local_name =
             android::base::StringPrintf("tcp:%d", server_port);
