@@ -489,8 +489,7 @@ static struct fstab *fs_mgr_read_fstab_file(FILE *fstab_file)
     }
 
     if (!entries) {
-        LERROR << "No entries found in fstab";
-        goto err;
+        LWARNING << "No entries found in fstab";
     }
 
     /* Allocate and init the fstab structure */
@@ -810,37 +809,37 @@ struct fstab_rec *fs_mgr_get_entry_for_mount_point(struct fstab *fstab, const ch
 
 int fs_mgr_is_voldmanaged(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_VOLDMANAGED;
+    return fstab ? fstab->fs_mgr_flags & MF_VOLDMANAGED : 0;
 }
 
 int fs_mgr_is_nonremovable(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_NONREMOVABLE;
+    return fstab ? fstab->fs_mgr_flags & MF_NONREMOVABLE : 0;
 }
 
 int fs_mgr_is_verified(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_VERIFY;
+    return fstab ? fstab->fs_mgr_flags & MF_VERIFY : 0;
 }
 
 int fs_mgr_is_avb(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_AVB;
+    return fstab ? fstab->fs_mgr_flags & MF_AVB : 0;
 }
 
 int fs_mgr_is_verifyatboot(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_VERIFYATBOOT;
+    return fstab ? fstab->fs_mgr_flags & MF_VERIFYATBOOT : 0;
 }
 
 int fs_mgr_is_encryptable(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & (MF_CRYPT | MF_FORCECRYPT | MF_FORCEFDEORFBE);
+    return fstab ? fstab->fs_mgr_flags & (MF_CRYPT | MF_FORCECRYPT | MF_FORCEFDEORFBE) : 0;
 }
 
 int fs_mgr_is_file_encrypted(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_FILEENCRYPTION;
+    return fstab ? fstab->fs_mgr_flags & MF_FILEENCRYPTION : 0;
 }
 
 void fs_mgr_get_file_encryption_modes(const struct fstab_rec *fstab,
@@ -848,47 +847,47 @@ void fs_mgr_get_file_encryption_modes(const struct fstab_rec *fstab,
                                       const char **filenames_mode_ret)
 {
     *contents_mode_ret = flag_to_encryption_mode(file_contents_encryption_modes,
-                                                 fstab->file_contents_mode);
+                                                 fstab ? fstab->file_contents_mode : 0);
     *filenames_mode_ret = flag_to_encryption_mode(file_names_encryption_modes,
-                                                  fstab->file_names_mode);
+                                                  fstab ? fstab->file_names_mode : 0);
 }
 
 int fs_mgr_is_convertible_to_fbe(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_FORCEFDEORFBE;
+    return fstab ? fstab->fs_mgr_flags & MF_FORCEFDEORFBE : 0;
 }
 
 int fs_mgr_is_noemulatedsd(const struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_NOEMULATEDSD;
+    return fstab ? fstab->fs_mgr_flags & MF_NOEMULATEDSD : 0;
 }
 
 int fs_mgr_is_notrim(struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_NOTRIM;
+    return fstab ? fstab->fs_mgr_flags & MF_NOTRIM : 0;
 }
 
 int fs_mgr_is_formattable(struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & (MF_FORMATTABLE);
+    return fstab ? fstab->fs_mgr_flags & (MF_FORMATTABLE) : 0;
 }
 
 int fs_mgr_is_slotselect(struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_SLOTSELECT;
+    return fstab ? fstab->fs_mgr_flags & MF_SLOTSELECT : 0;
 }
 
 int fs_mgr_is_nofail(struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_NOFAIL;
+    return fstab ? fstab->fs_mgr_flags & MF_NOFAIL : 0;
 }
 
 int fs_mgr_is_latemount(struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_LATEMOUNT;
+    return fstab ? fstab->fs_mgr_flags & MF_LATEMOUNT : 0;
 }
 
 int fs_mgr_is_quota(struct fstab_rec *fstab)
 {
-    return fstab->fs_mgr_flags & MF_QUOTA;
+    return fstab ? fstab->fs_mgr_flags & MF_QUOTA : 0;
 }
